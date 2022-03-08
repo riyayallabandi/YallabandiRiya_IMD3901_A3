@@ -1,0 +1,250 @@
+<html>
+
+<head>
+  <title>Tic Tac Toe</title>
+  <meta name="description" content="Multiplayer Tic Tac Toe Game">
+  <script src="js/aframe.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="CSS/style.css">
+</head>
+
+<body class="center">
+  <div class="center" style="margin-top: 1%;">
+    <button class="button" id="redBtn" style="background-color: red; border-color: red;">Red</button>
+    <button class="button" id="blackBtn">Black</button>
+    <button class="button" id="greenBtn" style="background-color: green; border-color: green;">Green</button>
+    <h3 id="textPlayer" style="position: absolute; font-size: 0.9rem; top: -2%;">(Player 1)</h2>
+      <h3 id="textComd" style="position: absolute; font-size: 0.9rem; top: 2%;">Player 2 can play now...</h2>
+  </div>
+  <div class="center-wrapper-parent">
+    <div class="canvas-wrapper">
+      <canvas id="tic-tac-toe-board" class="center-v"></canvas>
+    </div>
+  </div>
+  <!-- Script OF Game -->
+  <script>
+
+    var player = 1;
+    var count = 0;
+    var board = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    var lineColor = "rgb(0,0,0)";
+
+    var socket = io();
+    socket.on('connect', (userData) => {
+
+
+      socket.on('player1', function () {
+        player = 1;
+      });
+
+      socket.on('player2', function () {
+        player = 2;
+        socket.emit('getState');
+      });
+
+      socket.on('getState', function () {
+        socket.emit('state', { color: lineColor, board: board, counter: count });
+      });
+
+      socket.on('state', function (value) {
+        lineColor = value.color;
+        board = value.board;
+        count = value.counter;
+        drawBoard(lineColor);
+      });
+
+      socket.on('changeColor', function (value) {
+        lineColor = value;
+        console.log(value);
+        drawBoard(lineColor);
+      });
+
+      socket.on('board', function (value) {
+        board = value.board;
+        count = value.counter;
+        console.log(value);
+        console.log(player);
+        drawBoard(lineColor);
+      });
+
+      socket.on('win',function(value){
+        drawBoard(lineColor);
+        if(value == 0){
+          alert("Match is Draw");
+        }
+        else if(value == player)
+        {
+          alert("You Win Game");
+        }
+        else
+        {
+          alert("You Loss Game");
+        }
+        window.location.href = './index.html';
+      });
+
+      document.querySelector('#redBtn').addEventListener('click', () => {
+        lineColor = "rgb(255,0,0)";
+        socket.emit('changeColor', lineColor);
+        drawBoard(lineColor);
+      });
+
+
+      document.querySelector('#blackBtn').addEventListener('click', () => {
+        lineColor = "rgb(0,0,0)";
+        socket.emit('changeColor', lineColor);
+        drawBoard(lineColor);
+      });
+
+      document.querySelector('#greenBtn').addEventListener('click', () => {
+        lineColor = "rgb(0,255,0)";
+        socket.emit('changeColor', lineColor);
+        drawBoard(lineColor);
+      });
+
+      function addPlayingPiece(mouse) {
+        var xCordinate;
+        var yCordinate;
+        for (var x = 0; x < 3; x++) {
+          for (var y = 0; y < 3; y++) {
+            xCordinate = x * sectionSize;
+            yCordinate = y * sectionSize;
+            if (
+              mouse.x >= xCordinate && mouse.x <= xCordinate + sectionSize &&
+              mouse.y >= yCordinate && mouse.y <= yCordinate + sectionSize && count % 2 == player - 1
+            ) {
+              board[y][x] = player;
+              socket.emit('board', { board: board, counter: count });
+            }
+          }
+        }
+      }
+
+      function getCanvasMousePosition(event) {
+        var rect = canvas.getBoundingClientRect();
+
+        return {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        }
+      }
+
+      canvas.addEventListener('mouseup', function (event) {
+        addPlayingPiece(getCanvasMousePosition(event));
+        drawBoard(lineColor);
+      });
+    });
+
+    var canvas = document.getElementById('tic-tac-toe-board');
+    var context = canvas.getContext('2d');
+    var canvasSize = 500;
+    var sectionSize = canvasSize / 3;
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    context.translate(0.5, 0.5);
+    context.lineWidth = 10;
+
+    function clearPlayingArea(xCordinate, yCordinate) {
+      context.fillStyle = "#fff";
+      context.fillRect(
+        xCordinate,
+        yCordinate,
+        sectionSize,
+        sectionSize
+      );
+    }
+
+    function drawO(xCordinate, yCordinate) {
+      var halfSectionSize = (0.5 * sectionSize);
+      var centerX = xCordinate + halfSectionSize;
+      var centerY = yCordinate + halfSectionSize;
+      var radius = (sectionSize - 100) / 2;
+      var startAngle = 0 * Math.PI;
+      var endAngle = 2 * Math.PI;
+
+      context.strokeStyle = "#01bBC2";
+      context.beginPath();
+      context.arc(centerX, centerY, radius, startAngle, endAngle);
+      context.stroke();
+    }
+
+    function drawX(xCordinate, yCordinate) {
+      context.strokeStyle = "#f1be32";
+
+      context.beginPath();
+
+      var offset = 50;
+      context.moveTo(xCordinate + offset, yCordinate + offset);
+      context.lineTo(xCordinate + sectionSize - offset, yCordinate + sectionSize - offset);
+
+      context.moveTo(xCordinate + offset, yCordinate + sectionSize - offset);
+      context.lineTo(xCordinate + sectionSize - offset, yCordinate + offset);
+
+      context.stroke();
+    }
+
+    function drawLines(strokeStyle) {
+
+    }
+
+    function drawBoard(lineColor) {
+      document.querySelector("#textPlayer").textContent = "(Player " + player + " )";
+      document.querySelector("#textComd").textContent = "(Player " + (count % 2 + 1) + " can play now... )";
+      var xCordinate;
+      var yCordinate;
+      for (var x = 0; x < 3; x++) {
+        for (var y = 0; y < 3; y++) {
+          xCordinate = x * sectionSize;
+          yCordinate = y * sectionSize;
+          clearPlayingArea(xCordinate, yCordinate);
+          if (board[y][x] === 1) {
+            drawX(xCordinate, yCordinate);
+          }
+          else if (board[y][x] === 2) {
+            {
+              drawO(xCordinate, yCordinate);
+            }
+          }
+        }
+      }
+      //DRAW LINES
+      var lineStart = 4;
+      var lineLenght = canvasSize - 5;
+      context.strokeStyle = lineColor;
+      context.beginPath();
+      for (var y = 1; y <= 2; y++) {
+        context.moveTo(lineStart, y * sectionSize);
+        context.lineTo(lineLenght, y * sectionSize);
+      }
+      for (var x = 1; x <= 2; x++) {
+        context.moveTo(x * sectionSize, lineStart);
+        context.lineTo(x * sectionSize, lineLenght);
+      }
+      context.stroke();
+      if(count<9 && count%2 === player-1)
+      {
+        checkWhoWin();
+      }
+      if(count>=9)
+      {
+        socket.emit('win',0);
+      }
+    }
+
+    drawBoard(lineColor);
+
+    function checkWhoWin() {
+      //check win
+      for (let i = 0; i < 3; i++) {
+        if ((board[i][0] === player && board[i][1] === player && board[i][2] === player) || (board[0][i] === player && board[1][i] === player && board[2][i] === player)) {
+          socket.emit('win',player);
+        }
+      }
+      if ((board[0][0] === player && board[1][1] === player && board[2][2] === player) || (board[0][2] === player && board[1][1] === player && board[2][0] === player)) {
+        socket.emit('win',player);
+      }
+    }
+  </script>
+</body>
+
+</html>
